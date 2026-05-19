@@ -1,0 +1,45 @@
+@model SmartNotes.Models.LoginViewModel
+@{
+    ViewData["Title"] = "Login";
+}
+
+<div class="auth-wrap">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-logo">⚡</div>
+            <h1 class="auth-title">Welcome Back</h1>
+            <p class="auth-sub">Login to access your saved notes and generate new ones</p>
+        </div>
+
+        <form asp-action="Login" method="post" class="auth-form">
+            <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+            <div asp-validation-summary="ModelOnly" class="error-box"></div>
+
+            <div class="field-group">
+                <label class="field-label">Email Address</label>
+                <input asp-for="Email" class="field-input" placeholder="you@example.com" autocomplete="email" />
+                <span asp-validation-for="Email" class="field-error"></span>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Password</label>
+                <input asp-for="Password" class="field-input" placeholder="Your password" autocomplete="current-password" />
+                <span asp-validation-for="Password" class="field-error"></span>
+            </div>
+
+            <div class="field-check">
+                <label>
+                    <input asp-for="RememberMe" type="checkbox" />
+                    <span>Remember me</span>
+                </label>
+            </div>
+
+            <button type="submit" class="auth-btn">
+                <span>Login ⚡</span>
+                <span class="btn-shimmer"></span>
+            </button>
+        </form>
+
+        <p class="auth-switch">Don't have an account? <a asp-controller="Account" asp-action="Register">Create one free</a></p>
+    </div>
+</div>

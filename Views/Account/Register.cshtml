@@ -1,0 +1,49 @@
+@model SmartNotes.Models.RegisterViewModel
+@{
+    ViewData["Title"] = "Create Account";
+}
+
+<div class="auth-wrap">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-logo">⚡</div>
+            <h1 class="auth-title">Create Account</h1>
+            <p class="auth-sub">Join SmartNotes and start generating engineering-grade notes</p>
+        </div>
+
+        <form asp-action="Register" method="post" class="auth-form">
+            <div asp-validation-summary="ModelOnly" class="error-box"></div>
+
+            <div class="field-group">
+                <label class="field-label">Full Name</label>
+                <input asp-for="FullName" class="field-input" placeholder="e.g. Rahul Sharma" autocomplete="name" />
+                <span asp-validation-for="FullName" class="field-error"></span>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Email Address</label>
+                <input asp-for="Email" class="field-input" placeholder="you@example.com" autocomplete="email" />
+                <span asp-validation-for="Email" class="field-error"></span>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Password</label>
+                <input asp-for="Password" class="field-input" placeholder="Minimum 6 characters" autocomplete="new-password" />
+                <span asp-validation-for="Password" class="field-error"></span>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Confirm Password</label>
+                <input asp-for="ConfirmPassword" class="field-input" placeholder="Repeat your password" autocomplete="new-password" />
+                <span asp-validation-for="ConfirmPassword" class="field-error"></span>
+            </div>
+
+            <button type="submit" class="auth-btn">
+                <span>Create Account ⚡</span>
+                <span class="btn-shimmer"></span>
+            </button>
+        </form>
+
+        <p class="auth-switch">Already have an account? <a asp-controller="Account" asp-action="Login">Login</a></p>
+    </div>
+</div>

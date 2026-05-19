@@ -1,0 +1,25 @@
+## Build outputs
+bin/
+obj/
+
+## User secrets & sensitive config — never commit real keys
+appsettings.json
+appsettings.Development.json
+appsettings.Production.json
+
+## SQLite database — never commit this
+*.db
+*.db-shm
+*.db-wal
+
+## VS / Rider
+.vs/
+*.user
+.idea/
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Migrations (optional — remove this line if you want to commit migrations)
+# Migrations/

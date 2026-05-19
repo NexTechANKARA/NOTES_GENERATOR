@@ -1,0 +1,48 @@
+@model List<SmartNotes.Models.SavedNote>
+@{
+    ViewData["Title"] = "My Notes";
+}
+
+<section class="hero" style="padding:40px 0 28px">
+    <h1 class="hero-title" style="font-size:clamp(28px,4vw,44px)">My <em>Saved Notes</em></h1>
+    <p class="hero-sub">Your personal engineering knowledge base.</p>
+    <a class="btn-primary-lg" asp-action="Generate" style="margin-top:16px">⚡ Generate New Notes</a>
+</section>
+
+@if (!Model.Any())
+{
+    <div class="empty-state">
+        <div class="empty-icon">📂</div>
+        <h3>No saved notes yet</h3>
+        <p>Generate your first set of engineering notes and save them here.</p>
+        <a class="btn-primary-lg" asp-action="Generate">Generate Notes ⚡</a>
+    </div>
+}
+else
+{
+    <div class="notes-grid">
+        @foreach (var note in Model)
+        {
+            <div class="note-card">
+                <div class="note-card-header">
+                    <span class="note-subject-badge">@note.Subject</span>
+                    <span class="note-date">@note.GeneratedAt.ToString("dd MMM yyyy")</span>
+                </div>
+                <h3 class="note-title">@note.Topic</h3>
+                <div class="note-tabs-preview">
+                    <span class="note-tab-tag">📄 Notes</span>
+                    <span class="note-tab-tag">⚡ Summary</span>
+                    <span class="note-tab-tag">🧠 Questions</span>
+                    <span class="note-tab-tag">📐 Diagrams</span>
+                </div>
+                <div class="note-card-actions">
+                    <a class="note-btn-view" asp-action="View" asp-route-id="@note.Id">Open Notes</a>
+                    <form asp-action="Delete" asp-route-id="@note.Id" method="post" onsubmit="return confirm('Delete this note?')">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="note-btn-delete">🗑</button>
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+}

@@ -1,0 +1,340 @@
+@model SmartNotes.Models.NoteGenerationResult
+@{
+    ViewData["Title"] = Model.Topic + " — SmartNotes";
+}
+
+@if (!Model.Success)
+{
+    <div class="error-box" style="margin:40px auto;max-width:700px">
+        ❌ Error generating notes: @Model.Error
+        <br /><a asp-action="Generate" class="nav-link" style="margin-top:12px;display:inline-block">Try again</a>
+    </div>
+}
+else
+{
+<div class="results-section">
+
+    <!-- Header row -->
+    <div class="result-header">
+        <div class="result-topic-badge">📚 @Model.Topic</div>
+        <div class="result-exam-badge">@Model.Subject</div>
+        <div class="result-actions">
+            <button class="save-btn" id="saveBtn" onclick="saveNote()">💾 Save</button>
+            <button class="pdf-btn" id="pdfBtn" onclick="downloadPDF()">📥 PDF</button>
+        </div>
+    </div>
+
+    <!-- Subtopics covered -->
+    @if (Model.Subtopics.Any())
+    {
+        <div class="subtopics-row">
+            <span class="subtopics-label">Covers:</span>
+            @foreach (var sub in Model.Subtopics)
+            {
+                <span class="tag">@sub</span>
+            }
+        </div>
+    }
+
+    <!-- Tabs -->
+    <div class="tabs-bar">
+        <button class="tab-btn active" onclick="switchTab(this,'notes')">📄 Notes</button>
+        <button class="tab-btn" onclick="switchTab(this,'summary')">⚡ Summary</button>
+        <button class="tab-btn" onclick="switchTab(this,'questions')">🧠 Questions</button>
+        <button class="tab-btn" onclick="switchTab(this,'diagrams')">📐 Diagrams</button>
+    </div>
+
+    <!-- Notes tab -->
+    <div class="tab-content active" id="tab-notes">
+        <div class="card content-card" id="notes-content">
+            @Html.Raw(Model.NotesContent)
+        </div>
+    </div>
+
+    <!-- Summary tab -->
+    <div class="tab-content" id="tab-summary">
+        <div class="card content-card" id="summary-content">
+            @Html.Raw(Model.SummaryContent)
+        </div>
+    </div>
+
+    <!-- Questions tab (Solved + Assignment) -->
+    <div class="tab-content" id="tab-questions">
+        <div class="card content-card" id="questions-content">
+            @Html.Raw(Model.QuestionsContent)
+        </div>
+    </div>
+
+    <!-- Diagrams tab -->
+    <div class="tab-content" id="tab-diagrams">
+        <div class="card content-card diagrams-card" id="diagrams-content">
+            @Html.Raw(Model.DiagramsContent)
+        </div>
+    </div>
+
+</div>
+
+<!-- Hidden fields for save -->
+<input type="hidden" id="d-topic"     value="@Model.Topic" />
+<input type="hidden" id="d-subject"   value="@Model.Subject" />
+<input type="hidden" id="d-examtype"  value="@Model.ExamType" />
+<textarea id="d-notes"     style="display:none">@Model.NotesContent</textarea>
+<textarea id="d-summary"   style="display:none">@Model.SummaryContent</textarea>
+<textarea id="d-questions" style="display:none">@Model.QuestionsContent</textarea>
+<textarea id="d-diagrams"  style="display:none">@Model.DiagramsContent</textarea>
+}
+
+@section Scripts {
+<script>
+// ---- Tab switching ----
+function switchTab(btn, tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + tab).classList.add('active');
+
+    // Re-render mermaid when diagrams tab is opened
+    if (tab === 'diagrams' && window.mermaid) {
+        window.mermaid.run();
+    }
+}
+
+// ---- Reveal Answer ----
+function revealAnswer(btn) {
+    const answerDiv = btn.nextElementSibling;
+    if (answerDiv.style.display === 'none') {
+        answerDiv.style.display = 'block';
+        btn.textContent = '🙈 Hide Answer';
+        btn.classList.add('revealed');
+    } else {
+        answerDiv.style.display = 'none';
+        btn.textContent = '👁 Reveal Answer';
+        btn.classList.remove('revealed');
+    }
+}
+
+// ---- Save Note ----
+async function saveNote() {
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Saving...';
+
+    const payload = {
+        topic:            document.getElementById('d-topic').value,
+        subject:          document.getElementById('d-subject').value,
+        examType:         document.getElementById('d-examtype').value,
+        notesContent:     document.getElementById('d-notes').value,
+        summaryContent:   document.getElementById('d-summary').value,
+        questionsContent: document.getElementById('d-questions').value,
+        diagramsContent:  document.getElementById('d-diagrams').value
+    };
+
+    try {
+        const res = await fetch('/Notes/Save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            btn.textContent = '✅ Saved!';
+            btn.style.borderColor = '#10b981';
+        } else {
+            btn.textContent = '❌ Failed';
+            btn.disabled = false;
+        }
+    } catch {
+        btn.textContent = '❌ Error';
+        btn.disabled = false;
+    }
+}
+
+// ---- PDF Download ----
+async function downloadPDF() {
+    const btn = document.getElementById('pdfBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Generating...';
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+        const pageW  = doc.internal.pageSize.getWidth();
+        const pageH  = doc.internal.pageSize.getHeight();
+        const margin = 15;
+        const maxW   = pageW - margin * 2;
+        let y = margin;
+
+        const topic   = document.getElementById('d-topic').value;
+        const subject = document.getElementById('d-subject').value;
+
+        // ---- Helpers ----
+        function checkPage(needed = 10) {
+            if (y + needed > pageH - margin) {
+                doc.addPage();
+                drawBg();
+                drawAccentBar();
+                drawPageHeader();
+            }
+        }
+
+        function drawBg() {
+            doc.setFillColor(8, 12, 20);
+            doc.rect(0, 0, pageW, pageH, 'F');
+        }
+
+        function drawAccentBar() {
+            doc.setFillColor(59, 130, 246);
+            doc.rect(0, 0, 3, pageH, 'F');
+        }
+
+        function drawPageHeader() {
+            doc.setFillColor(13, 19, 34);
+            doc.rect(0, 0, pageW, 12, 'F');
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.setFont('helvetica', 'bold');
+            doc.text('⚡ SmartNotes AI', margin, 8);
+            doc.setFont('helvetica', 'normal');
+            doc.text(topic + ' · ' + subject, pageW / 2, 8, { align: 'center' });
+            const pg = doc.internal.getCurrentPageInfo().pageNumber;
+            doc.text('Page ' + pg, pageW - margin, 8, { align: 'right' });
+            y = 20;
+        }
+
+        function htmlToText(html) {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            const lines = [];
+            function walk(node, indent) {
+                if (node.nodeType === 3) {
+                    const t = node.textContent.trim();
+                    if (t) lines.push({ text: t, type: 'p', indent: indent || 0 });
+                    return;
+                }
+                const tag = node.tagName?.toLowerCase();
+                if (tag === 'h2') lines.push({ text: node.textContent.trim(), type: 'h2' });
+                else if (tag === 'h3') lines.push({ text: node.textContent.trim(), type: 'h3' });
+                else if (tag === 'h4') lines.push({ text: node.textContent.trim(), type: 'h4' });
+                else if (tag === 'li') lines.push({ text: '• ' + node.textContent.trim(), type: 'li', indent: (indent || 0) + 4 });
+                else if (tag === 'div' && (node.className?.includes('highlight-box') || node.className?.includes('example-box')))
+                    lines.push({ text: '▶ ' + node.textContent.trim(), type: 'highlight' });
+                else node.childNodes.forEach(c => walk(c, indent));
+            }
+            tmp.childNodes.forEach(n => walk(n, 0));
+            return lines;
+        }
+
+        function writeLines(lines) {
+            lines.forEach(line => {
+                if (!line.text) return;
+                const indent = line.indent || 0;
+                if (line.type === 'h2') {
+                    checkPage(14);
+                    doc.setFillColor(17, 24, 39);
+                    doc.roundedRect(margin, y - 3, maxW, 10, 2, 2, 'F');
+                    doc.setFillColor(59, 130, 246);
+                    doc.rect(margin, y - 3, 2.5, 10, 'F');
+                    doc.setFontSize(13); doc.setTextColor(226, 232, 240); doc.setFont('helvetica', 'bold');
+                    doc.text(line.text, margin + 6, y + 4);
+                    y += 14;
+                } else if (line.type === 'h3') {
+                    checkPage(10);
+                    y += 3;
+                    doc.setFontSize(11); doc.setTextColor(96, 165, 250); doc.setFont('helvetica', 'bold');
+                    doc.text(line.text, margin + indent, y);
+                    y += 8;
+                } else if (line.type === 'h4') {
+                    checkPage(8);
+                    doc.setFontSize(10); doc.setTextColor(167, 139, 250); doc.setFont('helvetica', 'bold');
+                    doc.text(line.text, margin + indent, y);
+                    y += 7;
+                } else if (line.type === 'highlight') {
+                    const w = doc.splitTextToSize(line.text, maxW - 8);
+                    checkPage(w.length * 5 + 6);
+                    doc.setFillColor(20, 30, 60);
+                    doc.roundedRect(margin, y - 2, maxW, w.length * 5 + 4, 2, 2, 'F');
+                    doc.setFontSize(9); doc.setTextColor(148, 163, 184); doc.setFont('helvetica', 'italic');
+                    doc.text(w, margin + 5, y + 3);
+                    y += w.length * 5 + 6;
+                } else if (line.type === 'li') {
+                    const w = doc.splitTextToSize(line.text, maxW - indent - 4);
+                    checkPage(w.length * 5 + 2);
+                    doc.setFontSize(9); doc.setTextColor(148, 163, 184); doc.setFont('helvetica', 'normal');
+                    doc.text(w, margin + indent, y);
+                    y += w.length * 5 + 2;
+                } else {
+                    const w = doc.splitTextToSize(line.text, maxW - indent);
+                    checkPage(w.length * 5 + 2);
+                    doc.setFontSize(9); doc.setTextColor(203, 213, 225); doc.setFont('helvetica', 'normal');
+                    doc.text(w, margin + indent, y);
+                    y += w.length * 5 + 2;
+                }
+            });
+        }
+
+        function addSectionHeader(label, r, g, b) {
+            checkPage(14);
+            doc.setFillColor(r, g, b);
+            doc.roundedRect(margin, y - 3, maxW, 11, 2, 2, 'F');
+            doc.setFontSize(12); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold');
+            doc.text(label, margin + 5, y + 5);
+            y += 16;
+        }
+
+        // ---- Cover Page ----
+        drawBg(); drawAccentBar();
+        doc.setFillColor(13, 19, 34);
+        doc.rect(0, 0, pageW, 50, 'F');
+        doc.setFontSize(9); doc.setTextColor(100, 116, 139); doc.setFont('helvetica', 'bold');
+        doc.text('⚡ SmartNotes AI', margin, 12);
+        doc.setFillColor(37, 99, 235);
+        doc.roundedRect(pageW - margin - 28, 7, 28, 7, 2, 2, 'F');
+        doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+        doc.text(subject.toUpperCase(), pageW - margin - 14, 12, { align: 'center' });
+        doc.setFontSize(22); doc.setTextColor(226, 232, 240); doc.setFont('helvetica', 'bold');
+        const titleLines = doc.splitTextToSize(topic, maxW);
+        doc.text(titleLines, margin, 30);
+        doc.setFontSize(9); doc.setTextColor(100, 116, 139); doc.setFont('helvetica', 'normal');
+        doc.text('AI-Generated Engineering Notes · SmartNotes · ' + new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }), margin, 46);
+        doc.setDrawColor(30, 45, 71);
+        doc.line(margin, 52, pageW - margin, 52);
+        y = 60;
+
+        // ---- Notes ----
+        writeLines(htmlToText(document.getElementById('d-notes').value));
+
+        // ---- Summary ----
+        doc.addPage(); drawBg(); drawAccentBar(); drawPageHeader();
+        addSectionHeader('⚡ QUICK SUMMARY', 16, 185, 129);
+        writeLines(htmlToText(document.getElementById('d-summary').value));
+
+        // ---- Questions ----
+        doc.addPage(); drawBg(); drawAccentBar(); drawPageHeader();
+        addSectionHeader('🧠 QUESTIONS — SOLVED & ASSIGNMENT', 124, 58, 237);
+        writeLines(htmlToText(document.getElementById('d-questions').value));
+
+        // ---- Diagrams (text description only in PDF) ----
+        doc.addPage(); drawBg(); drawAccentBar(); drawPageHeader();
+        addSectionHeader('📐 DIAGRAMS & EXPLANATIONS', 59, 130, 246);
+        writeLines(htmlToText(document.getElementById('d-diagrams').value));
+
+        // Footer
+        doc.setFontSize(7); doc.setTextColor(51, 65, 85); doc.setFont('helvetica', 'normal');
+        doc.text('Generated by SmartNotes AI · Powered by Groq Llama 3.3 70B · For educational use only', pageW / 2, pageH - 6, { align: 'center' });
+
+        doc.save(topic.replace(/\s+/g, '_') + '_SmartNotes.pdf');
+
+    } catch (err) {
+        alert('PDF generation failed: ' + (err.message || 'Unknown error'));
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '📥 PDF';
+    }
+}
+</script>
+@Html.AntiForgeryToken()
+}

@@ -1,0 +1,55 @@
+@model SmartNotes.Models.NoteGenerationRequest
+@{
+    ViewData["Title"] = "Generate Notes";
+}
+
+<section class="hero">
+    <div class="hero-tag">✦ AI-Powered Study Tool</div>
+    <h1 class="hero-title">Generate <em>Smart Notes</em><br>in Seconds</h1>
+    <p class="hero-sub">Enter any engineering topic and subject — get textbook-quality notes, diagrams, and questions instantly.</p>
+</section>
+
+<div class="card control-card">
+    <form asp-action="Generate" method="post" id="generateForm">
+
+        <div class="field-group">
+            <label class="field-label">📚 Topic</label>
+            <div class="input-wrapper">
+                <input asp-for="Topic" class="topic-input" id="topicInput"
+                       placeholder="e.g. Binary Search Tree, Fourier Transform, Normalization..." autocomplete="off" />
+                <span class="input-icon">✦</span>
+            </div>
+            <span asp-validation-for="Topic" class="field-error"></span>
+        </div>
+
+        <div class="field-group">
+            <label class="field-label">🔬 Subject</label>
+            <div class="input-wrapper">
+                <input asp-for="Subject" class="topic-input" id="subjectInput"
+                       placeholder="e.g. Data Structures, Thermodynamics, DBMS, Control Systems..." autocomplete="off" />
+                <span class="input-icon">✦</span>
+            </div>
+            <span asp-validation-for="Subject" class="field-error"></span>
+        </div>
+
+        <button type="submit" class="generate-btn" id="generateBtn">
+            <span class="btn-icon">⚡</span>
+            <span class="btn-text">Generate Notes</span>
+            <span class="btn-shimmer"></span>
+        </button>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+document.getElementById('generateForm').addEventListener('submit', function () {
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.querySelector('.btn-text').textContent = 'Generating...';
+    btn.classList.add('loading');
+});
+document.getElementById('topicInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('generateForm').submit(); }
+});
+</script>
+}

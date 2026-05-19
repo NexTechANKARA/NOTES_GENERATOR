@@ -1,0 +1,15 @@
+**/.classpath
+**/.dockerignore
+**/.env
+**/.git
+**/.gitignore
+**/.vs
+**/.vscode
+**/bin
+**/obj
+**/Migrations
+*.db
+*.db-shm
+*.db-wal
+Dockerfile
+README.md
